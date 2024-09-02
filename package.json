@@ -1,6 +1,6 @@
 {
   "name": "@hexlet/code",
-  "type":"module",
+  "type": "module",
   "version": "1.0.0",
   "description": "3rd educational project on Hexlet: 'RSS aggregator'",
   "main": "index.js",
@@ -8,5 +8,14 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Aleksei Skvortsov",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-plugin-babel": "^5.3.1",
+    "eslint-plugin-import": "^2.27.4",
+    "eslint-plugin-jest": "^27.2.1",
+    "webpack": "^5.94.0",
+    "webpack-cli": "^5.1.4"
+  }
 }
