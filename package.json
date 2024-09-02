@@ -1,0 +1,12 @@
+{
+  "name": "@hexlet/code",
+  "type":"module",
+  "version": "1.0.0",
+  "description": "3rd educational project on Hexlet: 'RSS aggregator'",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Aleksei Skvortsov",
+  "license": "ISC"
+}
