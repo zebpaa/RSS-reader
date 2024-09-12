@@ -37,4 +37,9 @@ export default {
   output: {
     clean: true,
   },
+  devServer: {
+    port: 5000,
+    hot: true,
+    open: true,
+  },
 };
