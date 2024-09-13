@@ -13,54 +13,23 @@ const elements = {
   modal: document.querySelector('.modal'),
 };
 
-// Ссылка должна быть валидным URL
+const convertHtmlToDom = (text) => {
+  const parser = new DOMParser();
+  return parser.parseFromString(text, 'application/xml');
+};
+
 export default async () => {
   const initialState = {
     // status: 'loading', // 'loading', 'success', 'fail'
     form: {
-      // status: null,
       valid: false,
       errors: [],
     },
     loadedFeeds: [],
     contents: {
-      feeds: [
-        {
-          title: 'Feed 1',
-          description: 'Это описание 1-го фида',
-          id: uniqueId(),
-        },
-        {
-          title: 'Feed 2',
-          description: 'Это описание 2-го фида',
-          id: uniqueId(),
-        },
-      ],
-      posts: [
-        {
-          title: 'Пост 1',
-          url: '',
-          description: 'Описание 1',
-          feedId: 2,
-          id: 1,
-        },
-        {
-          title: 'Пост 2',
-          url: '',
-          description: 'Описание 2',
-          feedId: 2,
-          id: 2,
-        },
-        {
-          title: 'Пост 3',
-          url: '',
-          description: 'Описание 3',
-          feedId: 2,
-          id: 3,
-        },
-      ],
+      feeds: [],
+      posts: [],
     },
-    // loadingProcess: {},
     ui: {
       seenPosts: [], // или {}
     },
@@ -103,18 +72,66 @@ export default async () => {
       // watchedState.form.valid = true;
       watchedState.form.errors = [];
       const id = uniqueId();
-      watchedState.contents.feeds.unshift({
-        title: 'Feed Next',
-        description: 'Это описание Next-го фида',
-        id,
-      });
-      watchedState.contents.posts.unshift({
-        title: 'Пост Next',
-        url: newRss.url,
-        description: 'Описание Next',
-        feedId: id,
-        id: uniqueId(),
-      });
+
+      fetch(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(newRss.url)}`)
+        .then((response) => {
+          if (response.ok) return response.json();
+          throw new Error('Network response was not ok.');
+        })
+        .then((data) => {
+          const feed = {
+            url: newRss.url,
+            title: '',
+            description: '',
+            id,
+          };
+
+          const posts = [];
+
+          const doc = convertHtmlToDom(data.contents);
+          console.log('doc: ', doc);
+          const feedTitle = doc.querySelector('title');
+          if (feedTitle.innerHTML.includes('[CDATA[')) {
+            [feed.title] = feedTitle.innerHTML.split('[CDATA[')[1].split(']]');
+          } else {
+            feed.title = feedTitle.textContent;
+          }
+          const feedDescription = doc.querySelector('description');
+          if (feedDescription.innerHTML.includes('[CDATA[')) {
+            [feed.description] = feedDescription.innerHTML.split('[CDATA[')[1].split(']]');
+          } else {
+            feed.description = feedDescription.textContent;
+          }
+          watchedState.contents.feeds.unshift(feed);
+          const items = doc.querySelectorAll('item');
+          items.forEach((item) => {
+            const post = {
+              title: '',
+              url: '',
+              description: '',
+              feedId: id,
+              id: uniqueId(),
+            };
+            const itemTitle = item.querySelector('title');
+            if (itemTitle.innerHTML.includes('[CDATA[')) {
+              [post.title] = itemTitle.innerHTML.split('[CDATA[')[1].split(']]');
+            } else {
+              post.title = itemTitle.textContent;
+            }
+            const itemDescription = item.querySelector('description');
+            if (itemDescription.innerHTML.includes('[CDATA[')) {
+              [post.description] = itemDescription.innerHTML.split('[CDATA[')[1].split(']]');
+            } else {
+              post.description = itemDescription.textContent;
+            }
+            const itemLink = item.querySelector('link');
+            post.url = itemLink.textContent;
+
+            posts.push(post);
+          });
+          watchedState.contents.posts.unshift(...posts);
+        });
+
       watchedState.loadedFeeds.push(newRss.url);
     } catch (err) {
       const validationErrors = err.inner.reduce((acc, cur) => {
