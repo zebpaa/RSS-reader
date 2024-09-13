@@ -2,7 +2,7 @@ import onChange from 'on-change';
 
 export default (elements, i18n, state) => {
   const {
-    input, feedback, posts, feeds, modal,
+    form, input, feedback, posts, feeds, modal,
   } = elements;
 
   // Генерация нужных данных в модалке
@@ -54,8 +54,6 @@ export default (elements, i18n, state) => {
     });
   };
 
-  createFeeds();
-
   // Генерация постов
   const createPosts = () => {
     posts.innerHTML = '';
@@ -89,8 +87,12 @@ export default (elements, i18n, state) => {
       ul.append(li);
 
       const a = document.createElement('a');
-      a.href = `${post.url}`;
-      a.classList.add('fw-bold');
+      a.href = post.url;
+      if (state.ui.seenPosts.includes(post.url)) {
+        a.classList.add('fw-normal', 'link-secondary');
+      } else {
+        a.classList.add('fw-bold');
+      }
       a.setAttribute('data-id', post.id);
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener noreferrer');
@@ -100,6 +102,7 @@ export default (elements, i18n, state) => {
       a.addEventListener('click', () => {
         a.classList.remove('fw-bold');
         a.classList.add('fw-normal', 'link-secondary');
+        state.ui.seenPosts.push(post.url);
       });
 
       const button = document.createElement('button');
@@ -114,13 +117,12 @@ export default (elements, i18n, state) => {
       button.addEventListener('click', (event) => {
         a.classList.remove('fw-bold');
         a.classList.add('fw-normal', 'link-secondary');
+        state.ui.seenPosts.push(post.url);
         const { id } = event.target.dataset;
         fillModalInfo(id);
       });
     });
   };
-
-  createPosts();
 
   const handleErrors = () => {
     if (!state.form.errors.url) {
@@ -139,6 +141,8 @@ export default (elements, i18n, state) => {
     feedback.classList.add('text-success');
     feedback.classList.remove('text-danger');
     feedback.textContent = i18n.t('success');
+    form.reset();
+    input.focus();
   };
 
   const render = (path) => {
