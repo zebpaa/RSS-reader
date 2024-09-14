@@ -1,8 +1,9 @@
 import * as yup from 'yup';
 import i18next from 'i18next';
-import uniqueId from 'lodash/uniqueId.js';
+// import axios from 'axios';
 import watch from './view.js';
 import locales from './locales/index.js';
+import parse from './parser.js';
 
 const elements = {
   form: document.querySelector('.rss-form'),
@@ -11,16 +12,19 @@ const elements = {
   posts: document.querySelector('.posts'),
   feeds: document.querySelector('.feeds'),
   modal: document.querySelector('.modal'),
+  submitButton: document.querySelector('form button'),
 };
 
-const convertHtmlToDom = (text) => {
-  const parser = new DOMParser();
-  return parser.parseFromString(text, 'application/xml');
+const getUrl = (rssUrl) => {
+  const url = new URL('/get', 'https://allorigins.hexlet.app');
+  url.searchParams.set('disableCache', true);
+  url.searchParams.set('url', rssUrl);
+  return url.toString();
 };
 
 export default async () => {
   const initialState = {
-    // status: 'loading', // 'loading', 'success', 'fail'
+    status: 'filling', // 'loading', 'success', 'fail'
     form: {
       valid: false,
       errors: [],
@@ -31,7 +35,7 @@ export default async () => {
       posts: [],
     },
     ui: {
-      seenPosts: [], // или {}
+      seenPosts: [],
     },
   };
 
@@ -69,70 +73,26 @@ export default async () => {
       });
 
       await schema.validate(newRss, { abortEarly: false });
+      watchedState.status = 'loading';
+
       // watchedState.form.valid = true;
       watchedState.form.errors = [];
-      const id = uniqueId();
 
-      fetch(`https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(newRss.url)}`)
+      fetch(getUrl(newRss.url))
         .then((response) => {
+          console.log('fetchResponse: ', response);
           if (response.ok) return response.json();
           throw new Error('Network response was not ok.');
         })
         .then((data) => {
-          const feed = {
-            url: newRss.url,
-            title: '',
-            description: '',
-            id,
-          };
+          const { feed, posts } = parse(data, newRss);
 
-          const posts = [];
-
-          const doc = convertHtmlToDom(data.contents);
-          console.log('doc: ', doc);
-          const feedTitle = doc.querySelector('title');
-          if (feedTitle.innerHTML.includes('[CDATA[')) {
-            [feed.title] = feedTitle.innerHTML.split('[CDATA[')[1].split(']]');
-          } else {
-            feed.title = feedTitle.textContent;
-          }
-          const feedDescription = doc.querySelector('description');
-          if (feedDescription.innerHTML.includes('[CDATA[')) {
-            [feed.description] = feedDescription.innerHTML.split('[CDATA[')[1].split(']]');
-          } else {
-            feed.description = feedDescription.textContent;
-          }
           watchedState.contents.feeds.unshift(feed);
-          const items = doc.querySelectorAll('item');
-          items.forEach((item) => {
-            const post = {
-              title: '',
-              url: '',
-              description: '',
-              feedId: id,
-              id: uniqueId(),
-            };
-            const itemTitle = item.querySelector('title');
-            if (itemTitle.innerHTML.includes('[CDATA[')) {
-              [post.title] = itemTitle.innerHTML.split('[CDATA[')[1].split(']]');
-            } else {
-              post.title = itemTitle.textContent;
-            }
-            const itemDescription = item.querySelector('description');
-            if (itemDescription.innerHTML.includes('[CDATA[')) {
-              [post.description] = itemDescription.innerHTML.split('[CDATA[')[1].split(']]');
-            } else {
-              post.description = itemDescription.textContent;
-            }
-            const itemLink = item.querySelector('link');
-            post.url = itemLink.textContent;
-
-            posts.push(post);
-          });
           watchedState.contents.posts.unshift(...posts);
         });
 
       watchedState.loadedFeeds.push(newRss.url);
+      watchedState.status = 'filling';
     } catch (err) {
       const validationErrors = err.inner.reduce((acc, cur) => {
         const { path, message } = cur;
@@ -142,6 +102,7 @@ export default async () => {
       console.log('Есть ошибки! validationErrors: ', validationErrors);
       // watchedState.form.valid = false;
       watchedState.form.errors = validationErrors;
+      watchedState.status = 'filling';
     }
   });
 };
