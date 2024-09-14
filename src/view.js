@@ -2,7 +2,7 @@ import onChange from 'on-change';
 
 export default (elements, i18n, state) => {
   const {
-    form, input, feedback, posts, feeds, modal,
+    form, input, feedback, posts, feeds, modal, submitButton,
   } = elements;
 
   // Генерация нужных данных в модалке
@@ -17,25 +17,34 @@ export default (elements, i18n, state) => {
     link.href = currentPost.url;
   };
 
-  // Генерация фидов
-  const createFeeds = () => {
-    feeds.innerHTML = '';
+  const createContainer = (container) => {
+    const newContainer = document.createElement('div');
+    container.replaceChildren(newContainer);
+
     const card = document.createElement('div');
     card.classList.add('card', 'border-0');
-    feeds.append(card);
+    newContainer.append(card);
 
     const cardBody = document.createElement('div');
     cardBody.classList.add('card-body');
     card.append(cardBody);
 
-    const h2 = document.createElement('h2');
-    h2.classList.add('card-title', 'h4');
-    h2.textContent = i18n.t('feeds');
-    cardBody.append(h2);
-
     const ul = document.createElement('ul');
     ul.classList.add('list-group', 'border-0', 'rounded-0');
     card.append(ul);
+    return { ul, cardBody };
+  };
+
+  const createTitle = (titleName, cardBody) => {
+    const h2 = document.createElement('h2');
+    h2.classList.add('card-title', 'h4');
+    h2.textContent = titleName === 'feeds' ? i18n.t(titleName) : i18n.t(`${titleName}.title`);
+    cardBody.append(h2);
+  };
+
+  const createFeeds = () => {
+    const { ul, cardBody } = createContainer(feeds);
+    createTitle('feeds', cardBody);
 
     state.contents.feeds.forEach((feed) => {
       const li = document.createElement('li');
@@ -54,25 +63,9 @@ export default (elements, i18n, state) => {
     });
   };
 
-  // Генерация постов
   const createPosts = () => {
-    posts.innerHTML = '';
-    const card = document.createElement('div');
-    card.classList.add('card', 'border-0');
-    posts.append(card);
-
-    const cardBody = document.createElement('div');
-    cardBody.classList.add('card-body');
-    card.append(cardBody);
-
-    const h2 = document.createElement('h2');
-    h2.classList.add('card-title', 'h4');
-    h2.textContent = i18n.t('posts.title');
-    cardBody.append(h2);
-
-    const ul = document.createElement('ul');
-    ul.classList.add('list-group', 'border-0', 'rounded-0');
-    card.append(ul);
+    const { ul, cardBody } = createContainer(posts);
+    createTitle('posts', cardBody);
 
     state.contents.posts.forEach((post) => {
       const li = document.createElement('li');
@@ -88,15 +81,15 @@ export default (elements, i18n, state) => {
 
       const a = document.createElement('a');
       a.href = post.url;
+      a.setAttribute('data-id', post.id);
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = post.title;
       if (state.ui.seenPosts.includes(post.url)) {
         a.classList.add('fw-normal', 'link-secondary');
       } else {
         a.classList.add('fw-bold');
       }
-      a.setAttribute('data-id', post.id);
-      a.setAttribute('target', '_blank');
-      a.setAttribute('rel', 'noopener noreferrer');
-      a.textContent = post.title;
       li.append(a);
 
       a.addEventListener('click', () => {
@@ -106,7 +99,7 @@ export default (elements, i18n, state) => {
       });
 
       const button = document.createElement('button');
-      button.setAttribute('type', 'button');
+      button.type = 'button';
       button.classList.add('btn', 'btn-outline-primary', 'btn-sm');
       button.setAttribute('data-id', post.id);
       button.setAttribute('data-bs-toggle', 'modal');
@@ -145,8 +138,18 @@ export default (elements, i18n, state) => {
     input.focus();
   };
 
-  const render = (path) => {
+  const render = (path, value) => {
     switch (path) {
+      case 'status':
+        if (value === 'loading') {
+          submitButton.disabled = true;
+          input.disabled = true;
+        }
+        if (value === 'filling') {
+          submitButton.disabled = false;
+          input.disabled = false;
+        }
+        break;
       case 'contents.feeds':
         createFeeds();
         break;
