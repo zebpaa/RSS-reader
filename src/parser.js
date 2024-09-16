@@ -1,6 +1,6 @@
 import uniqueId from 'lodash/uniqueId.js';
 
-const parse = (data, newRss) => {
+const parse = (data) => {
   const parser = new DOMParser();
   const doc = parser.parseFromString(data.contents, 'application/xml');
   const parserError = doc.querySelector('parsererror');
@@ -12,7 +12,7 @@ const parse = (data, newRss) => {
   const id = uniqueId();
 
   const feed = {
-    url: newRss.url,
+    url: doc.querySelector('link').textContent,
     title: doc.querySelector('title').textContent,
     description: doc.querySelector('description').textContent,
     id,
