@@ -6,15 +6,23 @@ export default (elements, i18n, state) => {
   } = elements;
 
   // Генерация нужных данных в модалке
-  const fillModalInfo = (id) => {
-    const currentPost = state.contents.posts.find((post) => String(post.id) === id);
-    const title = modal.querySelector('.modal-title');
-    const description = modal.querySelector('.modal-body');
-    title.textContent = currentPost.title;
-    description.textContent = currentPost.description;
+  const fillModalInfo = () => {
+    const {
+      title, description, href, id,
+    } = state.modal;
+    // при нажатии на ссылку или кнопку поста, меняет классы ссылке
+    const postEl = document.querySelector(`[data-id='${id}']`);
+    postEl.classList.remove('fw-bold');
+    postEl.classList.add('fw-normal', 'link-secondary');
 
-    const link = modal.querySelector('a[role="button"]');
-    link.href = currentPost.url;
+    const modalTitle = modal.querySelector('.modal-title');
+    const modalLink = modal.querySelector('a[role="button"]');
+    const modalDescription = modal.querySelector('.modal-body');
+
+    modalTitle.textContent = title;
+    modalDescription.textContent = description;
+    modalLink.href = href;
+    modalLink.id = id;
   };
 
   const createContainer = (container) => {
@@ -85,18 +93,12 @@ export default (elements, i18n, state) => {
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       a.textContent = post.title;
-      if (state.ui.seenPosts.includes(post.url)) {
+      if (state.ui.seenPosts.includes(post.id)) {
         a.classList.add('fw-normal', 'link-secondary');
       } else {
         a.classList.add('fw-bold');
       }
       li.append(a);
-
-      a.addEventListener('click', () => {
-        a.classList.remove('fw-bold');
-        a.classList.add('fw-normal', 'link-secondary');
-        state.ui.seenPosts.push(post.url);
-      });
 
       const button = document.createElement('button');
       button.type = 'button';
@@ -106,24 +108,16 @@ export default (elements, i18n, state) => {
       button.setAttribute('data-bs-target', '#modal');
       button.textContent = i18n.t('posts.button');
       li.append(button);
-
-      button.addEventListener('click', (event) => {
-        a.classList.remove('fw-bold');
-        a.classList.add('fw-normal', 'link-secondary');
-        state.ui.seenPosts.push(post.url);
-        const { id } = event.target.dataset;
-        fillModalInfo(id);
-      });
     });
   };
 
   const handleErrors = () => {
-    if (!state.form.errors.url) {
+    if (!state.form.errors) {
       input.classList.remove('is-invalid');
       feedback.textContent = '';
     } else {
       input.classList.add('is-invalid');
-      const [errorText] = state.form.errors.url;
+      const errorText = state.form.errors;
       feedback.classList.add('text-danger');
       feedback.textContent = i18n.t(errorText);
     }
@@ -154,14 +148,17 @@ export default (elements, i18n, state) => {
         createFeeds();
         break;
       case 'contents.posts':
+      case 'ui.seenPosts':
         createPosts();
         break;
       case 'form.errors':
         handleErrors();
         break;
       case 'loadedFeeds':
-        console.log('state.loadedFeeds: ', state.loadedFeeds);
         hangleSuccess();
+        break;
+      case 'modal':
+        fillModalInfo();
         break;
       default:
         console.log('Что-то пошло не так! path: ', path);
