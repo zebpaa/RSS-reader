@@ -1,15 +1,11 @@
 export default {
   translation: {
-    // languages: {
-    //   en: 'English',
-    //   ru: 'Русский',
-    // },
     errors: {
-      invalidForm: 'Ссылка должна быть валидным URL', // 'url must be a valid URL'
+      invalidForm: 'Ссылка должна быть валидным URL',
       urlIsNotRSS: 'Ресурс не содержит валидный RSS',
       rssAlreadyExists: 'RSS уже существует',
       required: 'Не должно быть пустым',
-      network: 'Ошибка сети',
+      timeout: 'Ошибка сети',
     },
     success: 'RSS успешно загружен',
     feeds: 'Фиды',

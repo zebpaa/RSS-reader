@@ -1,19 +1,10 @@
 import * as yup from 'yup';
+import uniqueId from 'lodash/uniqueId.js';
 import i18next from 'i18next';
 import axios from 'axios';
 import watch from './view.js';
 import locales from './locales/index.js';
 import parse from './parser.js';
-
-const elements = {
-  form: document.querySelector('.rss-form'),
-  input: document.querySelector('#url-input'),
-  feedback: document.querySelector('.feedback'),
-  posts: document.querySelector('.posts'),
-  feeds: document.querySelector('.feeds'),
-  modal: document.querySelector('.modal'),
-  submitButton: document.querySelector('form button'),
-};
 
 const getUrl = (rssUrl) => {
   const url = new URL('/get', 'https://allorigins.hexlet.app');
@@ -22,11 +13,20 @@ const getUrl = (rssUrl) => {
   return url.toString();
 };
 
-export default async () => {
+export default () => {
+  const elements = {
+    form: document.querySelector('.rss-form'),
+    input: document.querySelector('#url-input'),
+    feedback: document.querySelector('.feedback'),
+    posts: document.querySelector('.posts'),
+    feeds: document.querySelector('.feeds'),
+    modal: document.querySelector('.modal'),
+    submitButton: document.querySelector('form button'),
+  };
+
   const initialState = {
-    status: 'filling', // 'loading', 'success', 'fail'
+    status: 'filling', // 'loading'
     form: {
-      valid: false,
       errors: '',
     },
     loadedFeeds: [],
@@ -45,36 +45,36 @@ export default async () => {
     },
   };
 
-  // const getNewPosts = () => {
-  //   if (initialState.loadedFeeds.length === 0) {
-  //     console.log('Массив пустой!');
-  //   } else {
-  //     initialState.loadedFeeds.forEach(async (url) => {
-  //       try {
-  //         const response = await axios.get(getUrl(url));
-  //         const { feed, posts } = parse(response.data);
-  //         posts.filter((post) => {
-
-  //         });
-
-  //         console.log('feed: ', feed, '\n', 'posts: ', posts);
-  //       } catch (error) {
-  //         console.error(error);
-  //       }
-  //     });
-  //   }
-  // };
-
-  // setTimeout(() => getNewPosts(), 2000);
-
   const i18n = i18next.createInstance();
-  await i18n.init({
+  i18n.init({
     lng: 'ru',
     debug: false,
     resources: locales,
   });
 
   const watchedState = watch(elements, i18n, initialState);
+
+  const getNewPosts = () => {
+    const titlesOfPosts = watchedState.contents.posts.map(({ title }) => title);
+    const arrayOfPromises = watchedState.loadedFeeds.map((url) => axios.get(getUrl(url))
+      .then((response) => {
+        const { posts } = parse(response.data);
+        const newPosts = posts.filter((post) => !titlesOfPosts.includes(post.title)).map((item) => {
+          const id = uniqueId();
+          return { ...item, id };
+        });
+        if (watchedState.loadedFeeds.length > 0) {
+          watchedState.contents.posts = [...newPosts, ...watchedState.contents.posts];
+        }
+      }).catch((error) => {
+        console.log('error: ', error);
+      }));
+    Promise.all(arrayOfPromises).finally(() => {
+      setTimeout(() => getNewPosts(), 5000);
+    });
+  };
+
+  getNewPosts();
 
   yup.setLocale({
     mixed: {
@@ -86,98 +86,47 @@ export default async () => {
     },
   });
 
-  elements.form.addEventListener('submit', async (event) => {
+  elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
 
     const formData = new FormData(event.target);
     const newRss = Object.fromEntries(formData);
 
-    try {
-      // Cхема в библиотеке Yup проверяет условия в момент создания схемы, а не динамически
-      // в реальном времени. Каждый раз при проверке данных будет создаваться новая схема.
-      const schema = yup.object().shape({
-        url: yup.string().required().url()
-          .notOneOf(watchedState.loadedFeeds),
-      });
+    const schema = yup.object().shape({
+      url: yup.string().required().url().notOneOf(watchedState.loadedFeeds),
+    });
 
-      await schema.validate(newRss, { abortEarly: false });
-      watchedState.status = 'loading';
+    schema
+      .validate(newRss, { abortEarly: false })
+      .then((data) => {
+        watchedState.status = 'loading';
 
-      // watchedState.form.valid = true;
-
-      axios.get(getUrl(newRss.url))
-        .then((response) => {
-          if (response.status === 200) {
-            const { feed, posts } = parse(response.data);
-            watchedState.contents.feeds.unshift(feed);
-            watchedState.contents.posts.unshift(...posts);
-            watchedState.loadedFeeds.push(newRss.url);
+        axios
+          .get(getUrl(data.url), { timeout: 5000 })
+          .then((response) => {
+            if (response.status === 200) {
+              const { feed, posts } = parse(response.data);
+              watchedState.contents.feeds.unshift(feed);
+              watchedState.contents.posts.unshift(...posts);
+              watchedState.loadedFeeds.push(data.url);
+              watchedState.status = 'filling';
+            } else {
+              throw new Error('errors.urlIsNotRSS');
+            }
+          })
+          .catch((error) => {
+            const { message } = error;
+            watchedState.form.errors = message === 'timeout of 5000ms exceeded' ? 'errors.timeout' : message;
             watchedState.status = 'filling';
-          } else {
-            throw new Error('errors.urlIsNotRSS');
-          }
-        })
-        .catch((error) => {
-          const { message } = error;
-          watchedState.form.errors = message;
-          watchedState.status = 'filling';
-        });
-    } catch (err) {
-      const { message } = err;
-      // watchedState.form.valid = false;
-      watchedState.form.errors = message;
-      watchedState.status = 'filling';
-    }
+          });
+      })
+      .catch((err) => {
+        const { message } = err;
+        watchedState.form.errors = message;
+        watchedState.status = 'filling';
+      });
+    console.log('watchedState: ', watchedState);
   });
-
-  // elements.form.addEventListener('submit', async (event) => {
-  //   event.preventDefault();
-
-  //   const formData = new FormData(event.target);
-  //   const newRss = Object.fromEntries(formData);
-
-  //   try {
-  //     // Cхема в библиотеке Yup проверяет условия в момент создания схемы, а не динамически
-  //     // в реальном времени. Каждый раз при проверке данных будет создаваться новая схема.
-  //     const schema = yup.object().shape({
-  //       url: yup.string().required().url()
-  //         .notOneOf(watchedState.loadedFeeds), // .notOneOf() поможет избежать дубли
-  //     });
-
-  //     await schema.validate(newRss, { abortEarly: false });
-  //     watchedState.status = 'loading';
-
-  //     // watchedState.form.valid = true;
-  //     watchedState.form.errors = [];
-
-  //     fetch(getUrl(newRss.url))
-  //       .then((response) => {
-  //         // console.log('fetchResponse: ', response);
-  //         if (response.ok) return response.json();
-  //         throw new Error('Network response was not ok.');
-  //       })
-  //       .then((data) => {
-  //         const { feed, posts } = parse(data);
-
-  //         watchedState.contents.feeds.unshift(feed);
-  //         watchedState.contents.posts.unshift(...posts);
-  //       });
-
-  //     watchedState.loadedFeeds.push(newRss.url);
-  //     watchedState.status = 'filling';
-  //   } catch (err) {
-  //     const validationErrors = err.inner.reduce((acc, cur) => {
-  //       const { path, message } = cur;
-  //       const errorData = acc[path] || [];
-  //       return { ...acc, [path]: [...errorData, message] };
-  //     }, {});
-  //     console.log('Есть ошибки! validationErrors: ', validationErrors);
-  //     // watchedState.form.valid = false;
-  //     watchedState.form.errors = validationErrors;
-  //     watchedState.status = 'filling';
-  //   }
-  //   console.log('state: ', initialState);
-  // });
 
   elements.posts.addEventListener('click', (event) => {
     if (event.target.dataset.id) {

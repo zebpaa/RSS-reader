@@ -5,12 +5,11 @@ export default (elements, i18n, state) => {
     form, input, feedback, posts, feeds, modal, submitButton,
   } = elements;
 
-  // Генерация нужных данных в модалке
   const fillModalInfo = () => {
     const {
       title, description, href, id,
     } = state.modal;
-    // при нажатии на ссылку или кнопку поста, меняет классы ссылке
+
     const postEl = document.querySelector(`[data-id='${id}']`);
     postEl.classList.remove('fw-bold');
     postEl.classList.add('fw-normal', 'link-secondary');
