@@ -1,5 +1,4 @@
 import * as yup from 'yup';
-import uniqueId from 'lodash/uniqueId.js';
 import i18next from 'i18next';
 import axios from 'axios';
 import watch from './view.js';
@@ -56,13 +55,14 @@ export default () => {
 
   const getNewPosts = () => {
     const titlesOfPosts = watchedState.contents.posts.map(({ title }) => title);
-    const arrayOfPromises = watchedState.loadedFeeds.map((url) => axios.get(getUrl(url))
+    const arrayOfPromises = watchedState.loadedFeeds.map(([url, idOfFeed]) => axios.get(getUrl(url))
       .then((response) => {
         const { posts } = parse(response.data);
-        const newPosts = posts.filter((post) => !titlesOfPosts.includes(post.title)).map((item) => {
-          const id = uniqueId();
-          return { ...item, id };
-        });
+        const newPosts = posts.filter((post) => !titlesOfPosts.includes(post.title))
+          .map((item) => {
+            const feedId = idOfFeed;
+            return { ...item, feedId };
+          });
         if (watchedState.loadedFeeds.length > 0) {
           watchedState.contents.posts = [...newPosts, ...watchedState.contents.posts];
         }
@@ -92,8 +92,9 @@ export default () => {
     const formData = new FormData(event.target);
     const newRss = Object.fromEntries(formData);
 
+    const loadedUrls = watchedState.loadedFeeds.map(([url]) => url);
     const schema = yup.object().shape({
-      url: yup.string().required().url().notOneOf(watchedState.loadedFeeds),
+      url: yup.string().required().url().notOneOf(loadedUrls),
     });
 
     schema
@@ -108,7 +109,7 @@ export default () => {
               const { feed, posts } = parse(response.data);
               watchedState.contents.feeds.unshift(feed);
               watchedState.contents.posts.unshift(...posts);
-              watchedState.loadedFeeds.push(data.url);
+              watchedState.loadedFeeds.push([data.url, feed.id]);
               watchedState.status = 'filling';
             } else {
               throw new Error('errors.urlIsNotRSS');
@@ -125,13 +126,12 @@ export default () => {
         watchedState.form.errors = message;
         watchedState.status = 'filling';
       });
-    console.log('watchedState: ', watchedState);
   });
 
   elements.posts.addEventListener('click', (event) => {
     if (event.target.dataset.id) {
       const { id } = event.target.dataset;
-      initialState.contents.posts.forEach((post) => {
+      watchedState.contents.posts.forEach((post) => {
         if (post.id === id) {
           watchedState.modal = {
             title: post.title,
