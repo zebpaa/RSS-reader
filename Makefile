@@ -1,5 +1,5 @@
 develop:
-	npx webpack serve
+	npx webpack serve --allowed-hosts all
 
 install:
 	npm ci
