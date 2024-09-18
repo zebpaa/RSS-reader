@@ -118,7 +118,7 @@ export default () => {
           })
           .catch((error) => {
             const { message } = error;
-            watchedState.form.errors = message === 'timeout of 5000ms exceeded' ? 'errors.timeout' : message;
+            watchedState.form.errors = (message === 'timeout of 5000ms exceeded') ? 'errors.timeout' : message;
             watchedState.status = 'filling';
           });
       })
