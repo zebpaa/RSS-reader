@@ -58,11 +58,10 @@ export default () => {
     const arrayOfPromises = watchedState.loadedFeeds.map(([url, idOfFeed]) => axios.get(getUrl(url))
       .then((response) => {
         const { posts } = parse(response.data);
-        const newPosts = posts.filter((post) => !titlesOfPosts.includes(post.title))
-          .map((item) => {
-            const feedId = idOfFeed;
-            return { ...item, feedId };
-          });
+        const newPosts = posts.filter((post) => !titlesOfPosts.includes(post.title)).map((item) => {
+          const feedId = idOfFeed;
+          return { ...item, feedId };
+        });
         if (watchedState.loadedFeeds.length > 0) {
           watchedState.contents.posts = [...newPosts, ...watchedState.contents.posts];
         }
@@ -92,9 +91,8 @@ export default () => {
     const formData = new FormData(event.target);
     const newRss = Object.fromEntries(formData);
 
-    const loadedUrls = watchedState.loadedFeeds.map(([url]) => url);
     const schema = yup.object().shape({
-      url: yup.string().required().url().notOneOf(loadedUrls),
+      url: yup.string().required().url().notOneOf(watchedState.loadedFeeds.map(([url]) => url)),
     });
 
     schema
@@ -108,7 +106,10 @@ export default () => {
             if (response.status === 200) {
               const { feed, posts } = parse(response.data);
               watchedState.contents.feeds.unshift(feed);
-              watchedState.contents.posts.unshift(...posts);
+              watchedState.contents.posts = [
+                ...posts,
+                ...watchedState.contents.posts,
+              ];
               watchedState.loadedFeeds.push([data.url, feed.id]);
               watchedState.status = 'filling';
             } else {
@@ -117,12 +118,7 @@ export default () => {
           })
           .catch((error) => {
             const { message } = error;
-            console.log('message: ', message);
-            if (message === 'timeout of 5000ms exceeded') {
-              watchedState.form.errors = 'errors.timeout';
-            } else {
-              watchedState.form.errors = message;
-            }
+            watchedState.form.errors = message === 'timeout of 5000ms exceeded' ? 'errors.timeout' : message;
             watchedState.status = 'filling';
           });
       })
